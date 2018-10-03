@@ -4,7 +4,10 @@ import java.time.LocalDateTime;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
-import javax.persistence.EntityManagerFactory;
+import org.hibernate.HibernateException;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 
 public class Application {
 
@@ -20,9 +23,24 @@ public class Application {
   private final static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
 
   /**
-   * Hibernate's entity manager factory. It needs for working with database.
+   * Hibernate's session factory. It needs for working with database.
    */
-  private static EntityManagerFactory factory;
+  private static SessionFactory factory;
+
+  static {
+    try {
+      Configuration configuration = new Configuration();
+      configuration.configure();
+
+      factory = configuration.buildSessionFactory();
+    } catch (Throwable ex) {
+      throw new ExceptionInInitializerError(ex);
+    }
+  }
+
+  public static Session getSession() throws HibernateException {
+    return factory.openSession();
+  }
 
   /**
    * Main method, entry point.
@@ -30,6 +48,8 @@ public class Application {
    * @param args array of arguments.
    */
   public static void main(String[] args) {
+    final Session session = getSession();
+
     var timerThread = new Thread(() -> {
       while (true) {
         try {
