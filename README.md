@@ -26,3 +26,13 @@
 ## Database
 
 База данных на выбор: MySQL, MongoDB. Способ хранения данных в базе: на усмотрение автора.
+
+Для запуска MySQL можно использовать Docker:
+```bash
+docker run --rm -it --name mysql \
+       -e MYSQL_ROOT_PASSWORD=root \
+       -e MYSQL_DATABASE=testdb \
+       -v $PWD/database:/var/lib/mysql \
+       -p 3306:3306
+       mysql:latest
+```

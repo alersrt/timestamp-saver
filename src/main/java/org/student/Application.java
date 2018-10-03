@@ -1,8 +1,13 @@
 package org.student;
 
+import java.util.logging.Logger;
+
 public class Application {
 
+  private final static Logger LOGGER = Logger.getLogger(Application.class.getName());
+
   public static void main(String[] args) {
+    LOGGER.info("======> Application started");
     Thread threadMain = new Thread(() -> {
       while (true) {
         try {
@@ -10,7 +15,7 @@ public class Application {
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
-        System.out.println(Thread.currentThread().getName());
+        LOGGER.info(Thread.currentThread().getName());
       }
     });
 
