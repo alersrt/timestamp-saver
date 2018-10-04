@@ -109,6 +109,8 @@ public class Application {
     ) {
       Class.forName("com.mysql.cj.jdbc.Driver");
 
+      // Just for me, that I don't forget it. Sometimes select result so big and this
+      // hint saves my memory.
       preparedStatement.setFetchSize(1024);
       var resultSet = preparedStatement.executeQuery();
 
