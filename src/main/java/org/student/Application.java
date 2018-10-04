@@ -67,10 +67,7 @@ public class Application {
     while (true) {
       // Use "try" inside "while" that the loop will not be broken.
       try {
-        // Get but not remove head's element from queue.
-        var timestamp = queue.peek();
-        if (timestamp != null) {
-
+        if (!queue.isEmpty()) {
           // Create connection and check if communication error.
           Connection connection = null;
           try {
@@ -84,16 +81,36 @@ public class Application {
             continue;
           }
 
-          // Create and execute statement.
-          var ps = connection.prepareStatement("insert into timestamp (time) values (?)");
-          ps.setTimestamp(1, Timestamp.valueOf(timestamp));
-          ps.execute();
-
-          // Remove head's element from queue (if exception was thrown before this element stays in queue).
-          queue.poll();
+          // So, we will just reuse existed connection to write
+          // into database, if it is possible.
+          var iterator = queue.iterator();
+          while (iterator.hasNext()) {
+            // Get but not remove head's element from queue.
+            var timestamp = iterator.next();
+            // Savepoint for transaction.
+            var savepoint = connection.setSavepoint();
+            // Create and execute statement.
+            try (var ps = connection.prepareStatement("insert into timestamp (time) values (?)")) {
+              ps.setTimestamp(1, Timestamp.valueOf(timestamp));
+              ps.execute();
+              // Remove head's element from queue (if exception was thrown before this element stays in queue).
+              iterator.remove();
+            } catch (CommunicationsException ex) {
+              // Why need this try/catch? Connection can be lost when we try
+              // to write whole buffer to database. In the next iteration of
+              // the main loop we just start from latest place.
+              LOGGER.warning("DB CONNECTION IS NOT VALID");
+              connection.rollback(savepoint);
+              break;
+            } catch (SQLException e) {
+              connection.rollback(savepoint);
+              e.printStackTrace();
+              // Exit from cycle when exception happened.
+              break;
+            }
+          }
 
           // Release connection.
-          ps.close();
           connection.close();
         }
       } catch (Exception e) {
