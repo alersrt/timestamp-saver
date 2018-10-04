@@ -57,16 +57,15 @@ public class Application {
     var databaseThread = new Thread(() -> {
       while (true) {
         try {
-          var timestamp = queue.poll();
+          var session = sessionFactory.openSession();
+          var timestamp = queue.peek();
           if (timestamp != null) {
-            LOGGER.info(timestamp.toString());
-
-            var session = sessionFactory.openSession();
             Transaction tx = null;
             try {
               tx = session.beginTransaction();
               session.save(new TimestampEntity(timestamp));
               tx.commit();
+              queue.poll();
             } catch (Exception e) {
               if (tx != null) {
                 tx.rollback();
@@ -77,7 +76,7 @@ public class Application {
             }
           }
         } catch (Exception e) {
-          LOGGER.severe(e.toString());
+          e.printStackTrace();
         }
       }
     }, "#database");
