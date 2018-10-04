@@ -10,6 +10,5 @@
     <property name="connection.driver_class">com.mysql.jdbc.Driver</property>
     <property name="hbm2ddl.auto">create-drop</property>
     <mapping class="org.student.TimestampEntity"/>
-    <mapping resource="TimestampEntity.hbm.xml"/>
   </session-factory>
 </hibernate-configuration>

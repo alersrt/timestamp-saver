@@ -3,10 +3,10 @@ package org.student;
 import java.time.LocalDateTime;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.hibernate.HibernateException;
-import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 
 public class Application {
@@ -23,23 +23,18 @@ public class Application {
   private final static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
 
   /**
-   * Hibernate's session factory. It needs for working with database.
+   * Hibernate's session sessionFactory. It needs for working with database.
    */
-  private static SessionFactory factory;
+  private static SessionFactory sessionFactory;
 
   static {
     try {
-      Configuration configuration = new Configuration();
+      var configuration = new Configuration();
       configuration.configure();
-
-      factory = configuration.buildSessionFactory();
+      sessionFactory = configuration.buildSessionFactory();
     } catch (Throwable ex) {
       throw new ExceptionInInitializerError(ex);
     }
-  }
-
-  public static Session getSession() throws HibernateException {
-    return factory.openSession();
   }
 
   /**
@@ -48,30 +43,45 @@ public class Application {
    * @param args array of arguments.
    */
   public static void main(String[] args) {
-    final Session session = getSession();
-
     var timerThread = new Thread(() -> {
       while (true) {
         try {
-          Thread.sleep(1000);
+          TimeUnit.SECONDS.sleep(1);
           queue.offer(LocalDateTime.now());
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+        } catch (Exception e) {
+          LOGGER.severe(e.toString());
         }
       }
-    });
+    }, "#timer");
 
     var databaseThread = new Thread(() -> {
       while (true) {
-        var timestamp = queue.poll();
-        if (timestamp != null) {
-          LOGGER.info(timestamp.toString());
+        try {
+          var timestamp = queue.poll();
+          if (timestamp != null) {
+            LOGGER.info(timestamp.toString());
+
+            var session = sessionFactory.openSession();
+            Transaction tx = null;
+            try {
+              tx = session.beginTransaction();
+              session.save(new TimestampEntity(timestamp));
+              tx.commit();
+            } catch (Exception e) {
+              if (tx != null) {
+                tx.rollback();
+              }
+              throw e;
+            } finally {
+              session.close();
+            }
+          }
+        } catch (Exception e) {
+          LOGGER.severe(e.toString());
         }
       }
-    });
+    }, "#database");
 
-    timerThread.setName("#timer");
-    databaseThread.setName("#database");
     timerThread.start();
     databaseThread.start();
   }
