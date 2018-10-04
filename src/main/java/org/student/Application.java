@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.exception.JDBCConnectionException;
 
 public class Application {
 
@@ -76,7 +77,11 @@ public class Application {
             }
           }
         } catch (Exception e) {
-          e.printStackTrace();
+          if (e.getClass().equals(JDBCConnectionException.class)) {
+            LOGGER.warning("DB CONNECTION IS LOST");
+          } else {
+            e.printStackTrace();
+          }
         }
       }
     }, "#database");
