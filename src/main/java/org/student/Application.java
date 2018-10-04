@@ -54,6 +54,7 @@ public class Application {
       }
 
       while (true) {
+        // Use "try" inside "while" that the loop will not be broken.
         try {
           // Get but not remove head's element from queue.
           var timestamp = queue.peek();
@@ -72,19 +73,17 @@ public class Application {
               continue;
             }
 
-            if (connection != null) {
-              // Create and execute statement.
-              var ps = connection.prepareStatement("insert into timestamp (time) values (?)");
-              ps.setTimestamp(1, Timestamp.valueOf(timestamp));
-              ps.execute();
+            // Create and execute statement.
+            var ps = connection.prepareStatement("insert into timestamp (time) values (?)");
+            ps.setTimestamp(1, Timestamp.valueOf(timestamp));
+            ps.execute();
 
-              // Remove head's element from queue.
-              queue.poll();
+            // Remove head's element from queue (if exception was thrown before this element stays in queue).
+            queue.poll();
 
-              // Release connection.
-              ps.close();
-              connection.close();
-            }
+            // Release connection.
+            ps.close();
+            connection.close();
           }
         } catch (Exception e) {
           e.printStackTrace();
