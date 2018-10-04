@@ -1,14 +1,15 @@
 package org.student;
 
+import com.mysql.cj.jdbc.exceptions.CommunicationsException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.hibernate.SessionFactory;
-import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
-import org.hibernate.exception.JDBCConnectionException;
 
 public class Application {
 
@@ -24,19 +25,9 @@ public class Application {
   private final static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
 
   /**
-   * Hibernate's session sessionFactory. It needs for working with database.
+   * Url of database.
    */
-  private static SessionFactory sessionFactory;
-
-  static {
-    try {
-      var configuration = new Configuration();
-      configuration.configure();
-      sessionFactory = configuration.buildSessionFactory();
-    } catch (Throwable ex) {
-      throw new ExceptionInInitializerError(ex);
-    }
-  }
+  private static final String DATABASE_URL = "jdbc:mysql://localhost:3306/testdb?user=root&password=root";
 
   /**
    * Main method, entry point.
@@ -50,38 +41,53 @@ public class Application {
           TimeUnit.SECONDS.sleep(1);
           queue.offer(LocalDateTime.now());
         } catch (Exception e) {
-          LOGGER.severe(e.toString());
+          e.printStackTrace();
         }
       }
     }, "#timer");
 
     var databaseThread = new Thread(() -> {
+      try {
+        Class.forName("com.mysql.cj.jdbc.Driver");
+      } catch (ClassNotFoundException e) {
+        e.printStackTrace();
+      }
+
       while (true) {
         try {
-          var session = sessionFactory.openSession();
+          // Get but not remove head's element from queue.
           var timestamp = queue.peek();
           if (timestamp != null) {
-            Transaction tx = null;
+
+            // Create connection and check if communication error.
+            Connection connection = null;
             try {
-              tx = session.beginTransaction();
-              session.save(new TimestampEntity(timestamp));
-              tx.commit();
+              connection = DriverManager.getConnection(DATABASE_URL);
+            } catch (CommunicationsException ex) {
+              LOGGER.warning("DB CONNECTION IS NOT VALID");
+              TimeUnit.SECONDS.sleep(5);
+              continue;
+            } catch (SQLException e) {
+              e.printStackTrace();
+              continue;
+            }
+
+            if (connection != null) {
+              // Create and execute statement.
+              var ps = connection.prepareStatement("insert into timestamp (time) values (?)");
+              ps.setTimestamp(1, Timestamp.valueOf(timestamp));
+              ps.execute();
+
+              // Remove head's element from queue.
               queue.poll();
-            } catch (Exception e) {
-              if (tx != null) {
-                tx.rollback();
-              }
-              throw e;
-            } finally {
-              session.close();
+
+              // Release connection.
+              ps.close();
+              connection.close();
             }
           }
         } catch (Exception e) {
-          if (e.getClass().equals(JDBCConnectionException.class)) {
-            LOGGER.warning("DB CONNECTION IS LOST");
-          } else {
-            e.printStackTrace();
-          }
+          e.printStackTrace();
         }
       }
     }, "#database");
