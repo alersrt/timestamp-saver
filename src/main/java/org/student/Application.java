@@ -95,14 +95,10 @@ public class Application {
               ps.execute();
               // Remove head's element from queue (if exception was thrown before this element stays in queue).
               iterator.remove();
-            } catch (CommunicationsException ex) {
+            } catch (SQLException e) {
               // Why need this try/catch? Connection can be lost when we try
               // to write whole buffer to database. In the next iteration of
               // the main loop we just start from latest place.
-              LOGGER.warning("DB CONNECTION IS NOT VALID");
-              connection.rollback(savepoint);
-              break;
-            } catch (SQLException e) {
               connection.rollback(savepoint);
               e.printStackTrace();
               // Exit from cycle when exception happened.
