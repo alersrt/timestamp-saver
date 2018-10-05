@@ -35,6 +35,7 @@ public class Application {
    */
   public static void main(String[] args) {
     if (args.length == 0) {
+      // There is Runnable under lambda's capote.
       var producer = new Thread(Application::produceTimestamp, "#producer");
       var consumer = new Thread(Application::consumeTimestamp, "#consumer");
       producer.start();
@@ -51,7 +52,7 @@ public class Application {
         TimeUnit.SECONDS.sleep(1);
         queue.offer(LocalDateTime.now());
       } catch (Exception e) {
-        e.printStackTrace();
+        LOGGER.severe(e.toString());
       }
     }
   }
@@ -60,7 +61,7 @@ public class Application {
     try {
       Class.forName("com.mysql.cj.jdbc.Driver");
     } catch (ClassNotFoundException e) {
-      e.printStackTrace();
+      LOGGER.severe(e.toString());
     }
 
     Connection connection = null;
@@ -84,16 +85,16 @@ public class Application {
           // So, we will just reuse existed connection to write
           // into database, if it is possible.
           var iterator = queue.iterator();
-          while (iterator.hasNext()) {
+          while (!queue.isEmpty()) {
             // Get but not remove head's element from queue.
-            var timestamp = iterator.next();
+            var timestamp = queue.peek();
             // Create and execute statement.
             try (var ps = connection.prepareStatement("insert into timestamp (time) values (?)")) {
               ps.setTimestamp(1, Timestamp.valueOf(timestamp));
               ps.execute();
               connection.commit();
               // Remove head's element from queue (if exception was thrown before this element stays in queue).
-              iterator.remove();
+              queue.poll();
             } catch (SQLException e) {
               // Why need this try/catch? Connection can be lost when we try
               // to write whole buffer to database. In the next iteration of
@@ -112,7 +113,7 @@ public class Application {
           }
         }
       } catch (Exception e) {
-        e.printStackTrace();
+        LOGGER.severe(e.toString());
       }
     }
   }
@@ -133,7 +134,7 @@ public class Application {
         System.out.println(resultSet.getTimestamp("time"));
       }
     } catch (ClassNotFoundException | SQLException e) {
-      e.printStackTrace();
+      LOGGER.severe(e.toString());
     }
   }
 }
