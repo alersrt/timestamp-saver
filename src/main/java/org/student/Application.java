@@ -21,7 +21,7 @@ public class Application {
    * This queue uses as buffer. At first timestamp is placed in this queue and after it takes from here and writes to
    * database. Note: it is non blocking concurrency safe queue, I use it because we write once per second, no more.
    */
-  private static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
+  private final Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
 
   /**
    * Url of database.
@@ -36,7 +36,7 @@ public class Application {
   public static void main(String[] args) {
     var application = new Application();
     if (args.length == 0) {
-      // There is Runnable under lambda's capote.
+      // There is Runnable under lambda's hood.
       var producer = new Thread(application::produceTimestamp, "#producer");
       var consumer = new Thread(application::consumeTimestamp, "#consumer");
       producer.start();
