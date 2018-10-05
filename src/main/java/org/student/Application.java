@@ -21,12 +21,12 @@ public class Application {
    * This queue uses as buffer. At first timestamp is placed in this queue and after it takes from here and writes to
    * database. Note: it is non blocking concurrency safe queue, I use it because we write once per second, no more.
    */
-  private final static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
+  private static Queue<LocalDateTime> queue = new ConcurrentLinkedQueue<>();
 
   /**
    * Url of database.
    */
-  private static final String DATABASE_URL = "jdbc:mysql://localhost:3306/testdb?user=root&password=root";
+  private final String DATABASE_URL = "jdbc:mysql://localhost:3306/testdb?user=root&password=root";
 
   /**
    * Main method, entry point.
@@ -34,19 +34,20 @@ public class Application {
    * @param args array of arguments.
    */
   public static void main(String[] args) {
+    var application = new Application();
     if (args.length == 0) {
       // There is Runnable under lambda's capote.
-      var producer = new Thread(Application::produceTimestamp, "#producer");
-      var consumer = new Thread(Application::consumeTimestamp, "#consumer");
+      var producer = new Thread(application::produceTimestamp, "#producer");
+      var consumer = new Thread(application::consumeTimestamp, "#consumer");
       producer.start();
       consumer.start();
     } else if (args.length == 1 && args[0].equals("-p")) {
-      var printer = new Thread(Application::printTimestamps, "#printer");
+      var printer = new Thread(application::printTimestamps, "#printer");
       printer.start();
     }
   }
 
-  private static void produceTimestamp() {
+  private void produceTimestamp() {
     while (true) {
       try {
         TimeUnit.SECONDS.sleep(1);
@@ -57,7 +58,7 @@ public class Application {
     }
   }
 
-  private static void consumeTimestamp() {
+  private void consumeTimestamp() {
     try {
       Class.forName("com.mysql.cj.jdbc.Driver");
     } catch (ClassNotFoundException e) {
@@ -84,7 +85,6 @@ public class Application {
 
           // So, we will just reuse existed connection to write
           // into database, if it is possible.
-          var iterator = queue.iterator();
           while (!queue.isEmpty()) {
             // Get but not remove head's element from queue.
             var timestamp = queue.peek();
@@ -118,7 +118,7 @@ public class Application {
     }
   }
 
-  private static void printTimestamps() {
+  private void printTimestamps() {
     try (
         var connection = DriverManager.getConnection(DATABASE_URL);
         var preparedStatement = connection.prepareStatement("SELECT * from timestamp")
